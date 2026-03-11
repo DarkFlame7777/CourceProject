@@ -14,10 +14,10 @@ namespace MyProject
         {
             var builder = WebApplication.CreateBuilder(args);
 
-            var connection = builder.Configuration.GetConnectionString("DefaultConnection");
-
+            var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+            
             builder.Services.AddDbContext<ApplicationDbContext>(options =>
-                options.UseMySql(connection, new MySqlServerVersion(new Version(8, 0, 45))));
+                options.UseMySql(connectionString, ServerVersion.AutoDetect(connectionString)));
 
             builder.Services.AddControllersWithViews();
 
