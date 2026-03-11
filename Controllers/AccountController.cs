@@ -99,10 +99,10 @@ namespace MyProject.Controllers
             _dbContext.Users.Add(user);
             await _dbContext.SaveChangesAsync();
 
-            // var token = await _tokenService.GenerateTokenAsync(user.Id, TokenType.EmailConfirmation);
-            // var confirmationLink = GetConfirmationLink(user.Email, token);
+            var token = await _tokenService.GenerateTokenAsync(user.Id, TokenType.EmailConfirmation);
+            var confirmationLink = GetConfirmationLink(user.Email, token);
 
-            // await _emailService.SendEmailConfirmationAsync(user.Email, user.Username, confirmationLink);
+            await _emailService.SendEmailConfirmationAsync(user.Email, user.Username, confirmationLink);
 
             return RedirectToAction("RegistrationConfirmation");
         }
