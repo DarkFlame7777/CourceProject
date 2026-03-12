@@ -1,2 +1,29 @@
+@model IEnumerable<MyProject.Models.Entities.Inventory>
 
+@{
+    ViewData["Title"] = "All inventories";
+}
 
+<h2 class="mb-4">All inventories</h2>
+
+<div class="table-responsive">
+    <table class="table table-striped table-hover">
+        <thead>
+            <tr>
+                <th>Title</th>
+                <th>Creator</th>
+                <th>Date create</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var inventory in Model)
+            {
+                <tr onclick="window.location='@Url.Action("Details", "Inventory", new { id = inventory.Id })'" style="cursor: pointer;">
+                    <td>@inventory.Title</td>
+                    <td>@inventory.Creator.Username</td>
+                    <td>@inventory.CreatedAt.ToString("dd.MM.yyyy")</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+</div>
