@@ -1,0 +1,148 @@
+﻿@model MyProject.Models.ViewModels.Inventory.CreateInventoryViewModel
+
+@{
+    ViewData["Title"] = "Edit inventory";
+}
+
+<h2>@ViewData["Title"]</h2>
+
+<form asp-action="Edit" method="post" id="inventoryForm">
+    <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+
+    <div class="mb-4">
+        <label asp-for="Title" class="form-label fw-bold">Title</label>
+        <input asp-for="Title" class="form-control form-control-lg" />
+        <span asp-validation-for="Title" class="text-danger"></span>
+    </div>
+
+    <div class="mb-4">
+        <label class="form-label fw-bold">Fields inventory</label>
+        <div id="fields-container"></div>
+        <button type="button" class="btn btn-outline-primary mt-2" id="addFieldBtn">
+            <i class="bi bi-plus-lg"></i> Add field
+        </button>
+        <input type="hidden" asp-for="Fields" id="fieldsJson" />
+    </div>
+
+    <div class="mt-4">
+        <button type="submit" class="btn btn-primary px-4">Save</button>
+        <a asp-action="MyInventories" class="btn btn-outline-secondary px-4">Cancel</a>
+    </div>
+</form>
+
+@section Scripts {
+    <script>
+        let fields = [];
+
+        const fieldTypes = [
+            { value: 'string', label: 'string' },
+            { value: 'int', label: 'int' },
+            { value: 'decimal', label: 'decimal' },
+            { value: 'boolean', label: 'Yes/No' },
+            { value: 'date', label: 'Date' }
+        ];
+
+        function showAllFields() {
+            const container = document.getElementById('fields-container');
+            container.innerHTML = '';
+
+            for (let i = 0; i < fields.length; i++) {
+                const field = fields[i];
+
+                const row = document.createElement('div');
+                row.className = 'row mb-2 align-items-center';
+
+                const nameCol = document.createElement('div');
+                nameCol.className = 'col-md-5';
+                nameCol.innerHTML = `<input type="text" class="form-control" value="${field.name}" placeholder="Field name">`;
+
+                const typeCol = document.createElement('div');
+                typeCol.className = 'col-md-5';
+                let options = '';
+                for (let j = 0; j < fieldTypes.length; j++) {
+                    const selected = (field.type === fieldTypes[j].value) ? 'selected' : '';
+                    options += `<option value="${fieldTypes[j].value}" ${selected}>${fieldTypes[j].label}</option>`;
+                }
+                typeCol.innerHTML = `<select class="form-select">${options}</select>`;
+
+                const deleteCol = document.createElement('div');
+                deleteCol.className = 'col-md-2';
+                deleteCol.innerHTML = `<button type="button" class="btn btn-outline-danger" onclick="removeField(${i})">Delete</button>`;
+
+                row.appendChild(nameCol);
+                row.appendChild(typeCol);
+                row.appendChild(deleteCol);
+
+                container.appendChild(row);
+            }
+
+            saveToJson();
+        }
+
+        function removeField(index) {
+            const newFields = [];
+            for (let i = 0; i < fields.length; i++) {
+                if (i !== index) {
+                    newFields.push(fields[i]);
+                }
+            }
+            fields = newFields;
+            showAllFields();
+        }
+
+        function saveToJson() {
+            const rows = document.querySelectorAll('#fields-container .row');
+            const newFields = [];
+
+            for (let i = 0; i < rows.length; i++) {
+                const row = rows[i];
+                const nameInput = row.querySelector('input');
+                const typeSelect = row.querySelector('select');
+
+                newFields.push({
+                    name: nameInput ? nameInput.value : '',
+                    type: typeSelect ? typeSelect.value : 'string'
+                });
+            }
+
+            fields = newFields;
+            document.getElementById('fieldsJson').value = JSON.stringify(fields);
+        }
+
+        document.getElementById('addFieldBtn').addEventListener('click', function() {
+            fields.push({ name: '', type: 'string' });
+            showAllFields();
+        });
+
+        document.getElementById('fields-container').addEventListener('input', saveToJson);
+        document.getElementById('fields-container').addEventListener('change', saveToJson);
+
+        @if (!string.IsNullOrEmpty(Model.Fields) && Model.Fields != "[]")
+        {
+                <text>
+                    fields = @Html.Raw(Model.Fields);
+                </text>
+        }
+
+        showAllFields();
+
+        document.getElementById('inventoryForm').addEventListener('submit', function(e) {
+            const rows = document.querySelectorAll('#fields-container .row');
+
+            for (let i = 0; i < rows.length; i++) {
+                const nameInput = rows[i].querySelector('input');
+                if (!nameInput.value || nameInput.value.trim() === '') {
+                    e.preventDefault();
+                    alert('Please fill in all field names');
+                    return;
+                }
+            }
+
+            if (rows.length === 0) {
+                e.preventDefault();
+                alert('Add at least one field');
+                return;
+            }
+        });
+    </script>
+}

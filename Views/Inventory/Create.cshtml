@@ -1,0 +1,224 @@
+﻿@model MyProject.Models.ViewModels.Inventory.CreateInventoryViewModel
+
+@{
+    ViewData["Title"] = "Create Inventory";
+}
+
+<h2 class="mb-4">Create new inventory</h2>
+
+<form asp-action="Create" method="post" id="inventoryForm">
+    <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+
+    <div class="mb-4">
+        <label asp-for="Title" class="form-label fw-bold">Inventory name</label>
+        <input asp-for="Title" class="form-control form-control-lg" placeholder="Example: Office equipment" />
+        <span asp-validation-for="Title" class="text-danger"></span>
+    </div>
+
+    <div class="mb-4">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+            <label class="form-label fw-bold mb-0">Fields inventories</label>
+
+            <button type="button" class="btn btn-outline-danger btn-sm" id="deleteSelectedBtn" disabled>
+                <i class="bi bi-trash"></i> Delete selected
+            </button>
+        </div>
+
+        <div class="row mb-2 fw-bold text-muted small">
+            <div class="col-md-1 text-center">
+                <input type="checkbox" id="selectAll" class="form-check-input" />
+            </div>
+            <div class="col-md-4">Field name</div>
+            <div class="col-md-4">Field type</div>
+            <div class="col-md-3"></div>
+        </div>
+
+        <div id="fields-container">
+
+        </div>
+
+        <button type="button" class="btn btn-outline-primary mt-3" id="addFieldBtn">
+            <i class="bi bi-plus-lg"></i> Add field
+        </button>
+
+        <input type="hidden" asp-for="Fields" id="fieldsJson" />
+    </div>
+
+    <div class="mt-4">
+        <button type="submit" class="btn btn-primary px-4">Create inventory</button>
+        <a asp-action="MyInventories" class="btn btn-outline-secondary px-4">Cancel</a>
+    </div>
+</form>
+
+@section Scripts {
+    <script>
+        let fields = [];
+
+        const fieldTypes = [
+            { value: 'string', label: 'string' },
+            { value: 'int', label: 'int' },
+            { value: 'decimal', label: 'decimal' },
+            { value: 'boolean', label: 'Yes/No' },
+            { value: 'date', label: 'Date' }
+        ];
+
+        function showAllFields() {
+            const container = document.getElementById('fields-container');
+            container.innerHTML = '';
+
+            for (let i = 0; i < fields.length; i++) {
+                const field = fields[i];
+
+                const row = document.createElement('div');
+                row.className = 'row mb-2 align-items-center';
+
+                const checkboxCol = document.createElement('div');
+                checkboxCol.className = 'col-md-1 text-center';
+                checkboxCol.innerHTML = `<input type="checkbox" class="form-check-input" data-index="${i}">`;
+
+                const nameCol = document.createElement('div');
+                nameCol.className = 'col-md-4';
+                nameCol.innerHTML = `<input type="text" class="form-control" value="${field.name}" placeholder="Field name">`;
+
+                const typeCol = document.createElement('div');
+                typeCol.className = 'col-md-4';
+                let options = '';
+                for (let j = 0; j < fieldTypes.length; j++) {
+                    const selected = (field.type === fieldTypes[j].value) ? 'selected' : '';
+                    options += `<option value="${fieldTypes[j].value}" ${selected}>${fieldTypes[j].label}</option>`;
+                }
+                typeCol.innerHTML = `<select class="form-select">${options}</select>`;
+
+                const emptyCol = document.createElement('div');
+                emptyCol.className = 'col-md-3';
+
+                row.appendChild(checkboxCol);
+                row.appendChild(nameCol);
+                row.appendChild(typeCol);
+                row.appendChild(emptyCol);
+
+                container.appendChild(row);
+            }
+            saveToJson();
+        }
+
+        function saveToJson() {
+            const rows = document.querySelectorAll('#fields-container .row');
+            const newFields = [];
+
+            for (let i = 0; i < rows.length; i++) {
+                const row = rows[i];
+                const nameInput = row.querySelector('input[type="text"]');
+                const typeSelect = row.querySelector('select');
+
+                newFields.push({
+                    name: nameInput ? nameInput.value : '',
+                    type: typeSelect ? typeSelect.value : 'string'
+                });
+            }
+
+            fields = newFields;
+            document.getElementById('fieldsJson').value = JSON.stringify(fields);
+        }
+
+        document.getElementById('addFieldBtn').addEventListener('click', function() {
+            fields.push({ name: '', type: 'string' });
+            showAllFields();
+        });
+
+        document.getElementById('deleteSelectedBtn').addEventListener('click', function() {
+            const checkboxes = document.querySelectorAll('#fields-container input[type="checkbox"]:checked');
+
+            if (checkboxes.length === 0) return;
+
+            const indicesToRemove = [];
+            for (let i = 0; i < checkboxes.length; i++) {
+                indicesToRemove.push(parseInt(checkboxes[i].dataset.index));
+            }
+
+            const newFields = [];
+            for (let i = 0; i < fields.length; i++) {
+                if (!indicesToRemove.includes(i)) {
+                    newFields.push(fields[i]);
+                }
+            }
+            fields = newFields;
+
+            showAllFields();
+            updateDeleteButton();
+        });
+
+        function updateDeleteButton() {
+            const checkedCount = document.querySelectorAll('#fields-container input[type="checkbox"]:checked').length;
+            const deleteBtn = document.getElementById('deleteSelectedBtn');
+
+            if (checkedCount > 0) {
+                deleteBtn.disabled = false;
+                deleteBtn.innerHTML = `Delete selected (${checkedCount})`;
+            } else {
+                deleteBtn.disabled = true;
+                deleteBtn.innerHTML = 'Delete selected';
+            }
+        }
+
+        document.getElementById('selectAll').addEventListener('change', function(e) {
+            const checkboxes = document.querySelectorAll('#fields-container input[type="checkbox"]');
+            for (let i = 0; i < checkboxes.length; i++) {
+                checkboxes[i].checked = e.target.checked;
+            }
+            updateDeleteButton();
+        });
+
+        document.getElementById('fields-container').addEventListener('input', function() {
+            saveToJson();
+        });
+
+        document.getElementById('fields-container').addEventListener('change', function() {
+            saveToJson();
+            updateDeleteButton();
+        });
+
+        @if (!string.IsNullOrEmpty(Model.Fields) && Model.Fields != "[]")
+        {
+                <text>
+                    fields = @Html.Raw(Model.Fields);
+                </text>
+        }
+        else
+        {
+                <text>
+                    fields.push({ name: '', type: 'string' });
+                </text>
+        }
+
+        showAllFields();
+
+        document.getElementById('inventoryForm').addEventListener('submit', function(e) {
+            let hasEmptyNames = false;
+            let fieldCount = 0;
+
+            const rows = document.querySelectorAll('#fields-container .row');
+            fieldCount = rows.length;
+
+            for (let i = 0; i < rows.length; i++) {
+                const nameInput = rows[i].querySelector('input[type="text"]');
+                if (!nameInput.value || nameInput.value.trim() === '') {
+                    hasEmptyNames = true;
+                    break;
+                }
+            }
+
+            if (hasEmptyNames) {
+                e.preventDefault();
+                alert('Please fill in the names of all fields');
+                return;
+            }
+
+            if (fieldCount === 0) {
+                e.preventDefault();
+                alert('Add at least one field');
+                return;
+            }
+        });
+    </script>
+}

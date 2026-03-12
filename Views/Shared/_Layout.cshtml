@@ -24,7 +24,7 @@
                     <div class="collapse navbar-collapse" id="navbarSupportedContent">
 
                         <form class="d-flex mx-auto" style="width: 40%; min-width: 200px;" asp-controller="Search" asp-action="Index" method="get">
-                            <input class="form-control me-2" type="search" placeholder="Полнотекстовый поиск..." aria-label="Search" name="q">
+                            <input class="form-control me-2" type="search" placeholder="Full-text search..." aria-label="Search" name="q">
                             <button class="btn btn-outline-success" type="submit"><i class="bi bi-search"></i></button>
                         </form>
 
@@ -36,8 +36,8 @@
                                     <i class="bi bi-sun-fill"></i>
                                 </a>
                                 <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="themeDropdown">
-                                    <li><a class="dropdown-item" href="#" data-theme="light"><i class="bi bi-sun-fill me-2"></i>Светлая</a></li>
-                                    <li><a class="dropdown-item" href="#" data-theme="dark"><i class="bi bi-moon-fill me-2"></i>Тёмная</a></li>
+                                    <li><a class="dropdown-item" href="#" data-theme="light"><i class="bi bi-sun-fill me-2"></i>Light</a></li>
+                                    <li><a class="dropdown-item" href="#" data-theme="dark"><i class="bi bi-moon-fill me-2"></i>Dark</a></li>
                                 </ul>
                             </li>
 
@@ -48,7 +48,7 @@
                                 </a>
                                 <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="langDropdown">
                                     <li><a class="dropdown-item" href="#" data-lang="en">English</a></li>
-                                    <li><a class="dropdown-item" href="#" data-lang="ru">Русский</a></li>
+                                    <li><a class="dropdown-item" href="#" data-lang="ru">Russian</a></li>
                                 </ul>
                             </li>
 
@@ -59,11 +59,20 @@
                                         <i class="bi bi-person-circle"></i> @User.Identity.Name
                                     </a>
                                     <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="profileDropdown">
-                                        <li><a class="dropdown-item" asp-controller="Manage" asp-action="Index">Мой профиль</a></li>
+                                        <li>
+                                            <a class="dropdown-item" asp-controller="Home" asp-action="Index">
+                                                All inventories
+                                            </a>
+                                        </li>
+                                        <li>
+                                            <a class="dropdown-item" asp-controller="Inventory" asp-action="MyInventories">
+                                                My inventories
+                                            </a>
+                                        </li>
                                         <li><hr class="dropdown-divider"></li>
                                         <li>
                                             <form asp-controller="Account" asp-action="Logout" method="post" id="logoutForm">
-                                                <button type="submit" class="dropdown-item">Выйти</button>
+                                                <button type="submit" class="dropdown-item">Exit</button>
                                             </form>
                                         </li>
                                     </ul>

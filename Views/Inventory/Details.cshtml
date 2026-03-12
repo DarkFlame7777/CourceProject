@@ -1,0 +1,90 @@
+﻿@using System.Text.Json
+@{
+    var inventory = ViewBag.Inventory as MyProject.Models.Entities.Inventory;
+    var items = ViewBag.Items as List<MyProject.Models.Entities.Item> ?? new();
+    var fields = ViewBag.Fields as List<MyProject.Models.ViewModels.Inventory.InventoryField> ?? new();
+}
+
+<h2>@inventory.Title</h2>
+<p class="text-muted">Создал: @inventory.Creator.Username</p>
+
+@if (User.Identity?.IsAuthenticated == true)
+{
+    <button class="btn btn-primary mb-3" type="button" data-bs-toggle="collapse" data-bs-target="#addItemForm">
+        <i class="bi bi-plus-lg"></i> Add item
+    </button>
+
+    <div class="collapse mb-4" id="addItemForm">
+        <div class="card card-body">
+            <form asp-action="AddItem" method="post">
+                <input type="hidden" name="inventoryId" value="@inventory.Id" />
+
+                @for (int i = 0; i < fields.Count; i++)
+                {
+                    <div class="mb-3">
+                        <label class="form-label">@fields[i].Name</label>
+                        @if (fields[i].Type == "boolean")
+                        {
+                            <select name="values" class="form-select">
+                                <option value="true">Yes</option>
+                                <option value="false">No</option>
+                            </select>
+                        }
+                        else if (fields[i].Type == "number")
+                        {
+                            <input type="number" step="any" name="values" class="form-control" />
+                        }
+                        else
+                        {
+                            <input type="text" name="values" class="form-control" />
+                        }
+                    </div>
+                }
+
+                <button type="submit" class="btn btn-success">Save</button>
+            </form>
+        </div>
+    </div>
+}
+
+@if (items.Any())
+{
+    <div class="table-responsive">
+        <table class="table table-striped">
+            <thead>
+                <tr>
+                    @foreach (var field in fields)
+                    {
+                        <th>@field.Name</th>
+                    }
+                    <th>Added</th>
+                    <th>Date</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var item in items)
+                {
+                    var values = JsonSerializer.Deserialize<List<string>>(item.ValuesJson) ?? new();
+
+                    <tr>
+                        @for (int i = 0; i < fields.Count; i++)
+                        {
+                            <td>
+                                @if (i < values.Count)
+                                {
+                                    @values[i]
+                                }
+                            </td>
+                        }
+                        <td>@item.CreatedBy.Username</td>
+                        <td>@item.CreatedAt.ToString("dd.MM.yyyy HH:mm")</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}
+else
+{
+    <p class="text-muted">There are no records yet</p>
+}
