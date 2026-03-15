@@ -5,6 +5,7 @@ using MyProject.Services.Abstractions;
 using MyProject.Services.Implementions;
 using MyProject.Validators;
 using SharpGrip.FluentValidation.AutoValidation.Mvc.Extensions;
+using Microsoft.AspNetCore.Authentication.Cookies;
 
 namespace MyProject
 {
