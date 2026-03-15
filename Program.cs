@@ -34,7 +34,7 @@ namespace MyProject
             //    config.OverrideDefaultResultFactoryWith<MvcResultFactory>();
             //});
 
-            builder.Services.AddAuthentication("Cookies")
+            builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
                 .AddCookie(options =>
                 {
                     options.Cookie.Name = "CourseProjectAuth";
