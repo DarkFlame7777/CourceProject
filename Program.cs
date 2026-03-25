@@ -1,11 +1,12 @@
 using FluentValidation;
+using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.EntityFrameworkCore;
 using MyProject.Data;
 using MyProject.Services.Abstractions;
 using MyProject.Services.Implementions;
 using MyProject.Validators;
+using SharpGrip.FluentValidation.AutoValidation.Mvc.Enums;
 using SharpGrip.FluentValidation.AutoValidation.Mvc.Extensions;
-using Microsoft.AspNetCore.Authentication.Cookies;
 
 namespace MyProject
 {
@@ -15,25 +16,14 @@ namespace MyProject
         {
             var builder = WebApplication.CreateBuilder(args);
 
-            var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
-            
+            var connection = builder.Configuration.GetConnectionString("DefaultConnection");
+
             builder.Services.AddDbContext<ApplicationDbContext>(options =>
-                options.UseMySql(connectionString, ServerVersion.AutoDetect(connectionString)));
+                options.UseMySql(connection, new MySqlServerVersion(new Version(8, 0, 45))));
 
             builder.Services.AddControllersWithViews();
 
-            //builder.Services.AddValidatorsFromAssemblyContaining<LoginValidator>();
-            //builder.Services.AddValidatorsFromAssemblyContaining<RegisterValidator>();
-            //builder.Services.AddValidatorsFromAssemblyContaining<ResetPasswordValidator>();
-
-            //builder.Services.AddFluentValidationAutoValidation(config =>
-            //{
-            //    config.DisableBuiltInModelValidation = false;
-            //    config.EnableFormBindingSourceAutomaticValidation = true;
-            //    config.EnableBodyBindingSourceAutomaticValidation = true;
-            //    config.EnableQueryBindingSourceAutomaticValidation = true;
-            //    config.OverrideDefaultResultFactoryWith<MvcResultFactory>();
-            //});
+            builder.Services.AddValidatorsFromAssemblyContaining<LoginValidator>();
 
             builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
                 .AddCookie(options =>
@@ -52,6 +42,8 @@ namespace MyProject
             builder.Services.AddScoped<IEmailService, ResendEmailService>();
             builder.Services.AddScoped<ITokenService, TokenService>();
             builder.Services.AddScoped<IPasswordHasher, PasswordHasher>();
+            builder.Services.AddScoped<IInventoryService, InventoryService>();
+            builder.Services.AddScoped<IUserService, UserService>();
 
             var app = builder.Build();
 
@@ -70,16 +62,8 @@ namespace MyProject
                 name: "default",
                 pattern: "{controller=Home}/{action=Index}/{id?}")
                 .WithStaticAssets();
-            
-            using (var scope = app.Services.CreateScope())
-            {
-                var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-                dbContext.Database.Migrate();
-            }
-            
+
             app.Run();
         }
     }
-
 }
-
