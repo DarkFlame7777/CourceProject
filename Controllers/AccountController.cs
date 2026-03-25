@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Authentication;
+using FluentValidation;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -12,21 +13,28 @@ namespace MyProject.Controllers
 {
     public class AccountController : Controller
     {
-        private readonly ApplicationDbContext _dbContext;
         private readonly IEmailService _emailService;
         private readonly ITokenService _tokenService;
-        private readonly IPasswordHasher _passwordHasher;
+        private readonly IUserService _userService;
+        private readonly IValidator<LoginViewModel> _loginValidator;
+        private readonly IValidator<RegisterViewModel> _registerValidator;
+        private readonly IValidator<ResetPasswordViewModel> _resetPasswordValidator;
 
-        public AccountController(
-            ApplicationDbContext context,
-            IEmailService emailService,
+
+        public AccountController(IEmailService emailService,
             ITokenService tokenService,
-            IPasswordHasher passwordHasher)
+            IUserService userService,
+            IInventoryService inventoryService,
+            IValidator<LoginViewModel> loginValidator,
+            IValidator<RegisterViewModel> registerValidator,
+            IValidator<ResetPasswordViewModel> resetPasswordValidator)
         {
-            _dbContext = context;
             _emailService = emailService;
             _tokenService = tokenService;
-            _passwordHasher = passwordHasher;
+            _userService = userService;
+            _loginValidator = loginValidator;
+            _registerValidator = registerValidator;
+            _resetPasswordValidator = resetPasswordValidator;
         }
 
         [HttpGet]
@@ -61,9 +69,8 @@ namespace MyProject.Controllers
         [HttpGet]
         public async Task<IActionResult> ConfirmEmail(string email, string token)
         {
-            var user = await FindUserbyEmailAsync(email);
-            if (user == null)
-                return NotFound("User not found.");
+            var user = await _userService.GetUserByEmailAsync(email);
+            if (user == null) return NotFound("User not found.");
 
             var isValid = await _tokenService.IsTokenValidAsync(user.Id, token, TokenType.EmailConfirmation);
 
@@ -71,9 +78,9 @@ namespace MyProject.Controllers
                 return BadRequest("The confirmation link is invalid or has expired.");
 
             var emailToken = await _tokenService.GetTokenAsync(user.Id, token, TokenType.EmailConfirmation);
-            user.EmailConfirmed = true;
+            await _userService.ConfirmEmailAsync(user);
+
             await _tokenService.InvalidateTokenAsync(emailToken!);
-            await _dbContext.SaveChangesAsync();
 
             return RedirectToAction("Login", new { confirmed = true });
         }
@@ -81,26 +88,23 @@ namespace MyProject.Controllers
         [HttpPost]
         public async Task<IActionResult> Login(LoginViewModel model)
         {
-            if (!ModelState.IsValid) return View(model);
-
-            var user = await FindUserbyEmailAsync(model.Email);
-
+            bool flag = await IsValidModel(_loginValidator, model);
+            if (!ModelState.IsValid || !flag) return View(model);
+            var user = await _userService.GetUserByEmailAsync(model.Email);
             await SignInUserAsync(user!, model.RememberMe);
-
             return RedirectToAction("Index", "Home");
         }
 
         [HttpPost]
         public async Task<IActionResult> Register(RegisterViewModel model)
         {
-            if (!ModelState.IsValid) return View(model);
+            bool flag = await IsValidModel(_registerValidator, model);
+            if (!ModelState.IsValid || !flag) return View(model);
 
-            var user = CreateUser(model.Username, model.Email, model.Password);
-            _dbContext.Users.Add(user);
-            await _dbContext.SaveChangesAsync();
+            var user = await _userService.CreateUserAsync(model);
 
             var token = await _tokenService.GenerateTokenAsync(user.Id, TokenType.EmailConfirmation);
-            var confirmationLink = GetConfirmationLink(user.Email, token);
+            var confirmationLink = GenerateLink(nameof(ConfirmEmail), new { email = user.Email, token });
 
             await _emailService.SendEmailConfirmationAsync(user.Email, user.Username, confirmationLink);
 
@@ -110,16 +114,14 @@ namespace MyProject.Controllers
         [HttpPost]
         public async Task<IActionResult> ResetPassword(ResetPasswordViewModel model)
         {
-            if (!ModelState.IsValid) return View(model);
+            bool flag = await IsValidModel(_resetPasswordValidator, model);
+            if (!ModelState.IsValid || !flag) return View(model);
 
-            var user = await FindUserbyEmailAsync(model.Email);
+            var user = await _userService.GetUserByEmailAsync(model.Email);
 
-            if (user != null)
-            {
-                var token = await _tokenService.GenerateTokenAsync(user.Id, TokenType.PasswordReset);
-                var resetLink = GetResetLink(user.Id, token);
-                await _emailService.SendPasswordResetAsync(user.Email, user.Username, resetLink);
-            }
+            var token = await _tokenService.GenerateTokenAsync(user.Id, TokenType.PasswordReset);
+            var resetLink = GenerateLink(nameof(NewPassword), new { userId = user.Id, token });
+            await _emailService.SendPasswordResetAsync(user.Email, user.Username, resetLink);
 
             TempData["Message"] = "If this email exists, a reset link will be sent.";
             return RedirectToAction("Login");
@@ -138,9 +140,9 @@ namespace MyProject.Controllers
             }
 
             var emailToken = await _tokenService.GetTokenAsync(userId, token, TokenType.PasswordReset);
-            emailToken!.User.PasswordHash = _passwordHasher.HashPassword(model.Password);
+            await _userService.ChangePasswordAsync(emailToken!.User, model.Password);
+      
             await _tokenService.InvalidateTokenAsync(emailToken);
-            await _dbContext.SaveChangesAsync();
 
             TempData["Success"] = "Password successfully changed. You can now log in.";
             return RedirectToAction("Login");
@@ -153,37 +155,30 @@ namespace MyProject.Controllers
             return RedirectToAction("Index", "Home");
         }
 
-        private async Task<User?> FindUserbyEmailAsync(string email) =>
-            await _dbContext.Users.FirstOrDefaultAsync(u => u.Email == email);
-
-        private User CreateUser(string username, string email, string password) 
-            => new User
-            {
-                Username = username,
-                Email = email,
-                PasswordHash = _passwordHasher.HashPassword(password)
-            };
-
-        private string GetConfirmationLink(string email, string token) =>
-            Url.Action("ConfirmEmail", "Account", new { email, token }, Request.Scheme)!;
-
-        private string GetResetLink(int userId, string token) =>
-            Url.Action("NewPassword", "Account", new { userId, token }, Request.Scheme)!;
+        private string GenerateLink<T>(string action, T routeValues) =>
+            Url.Action(action, "Account", routeValues, Request.Scheme)!;
 
         private async Task SignInUserAsync(User user, bool rememberMe)
         {
-            var claims = new List<Claim>
-            {
-                new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
-                new Claim(ClaimTypes.Name, user.Username),
-                new Claim(ClaimTypes.Email, user.Email)
-            };
-
-            var identity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
             await HttpContext.SignInAsync(
                 CookieAuthenticationDefaults.AuthenticationScheme,
-                new ClaimsPrincipal(identity),
+                new ClaimsPrincipal(_userService.GetIdentity(user)),
                 new AuthenticationProperties { IsPersistent = rememberMe });
+        }
+
+        private async Task<bool> IsValidModel<T>(IValidator<T> contextValidator, T model)
+        {
+            var validationResult = await contextValidator.ValidateAsync(model);
+
+            if (!validationResult.IsValid)
+            {
+                foreach (var error in validationResult.Errors)
+                {
+                    ModelState.AddModelError(error.PropertyName, error.ErrorMessage);
+                }
+                return false;
+            }
+            return true;
         }
     }
 }
